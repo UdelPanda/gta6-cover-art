@@ -1,0 +1,37 @@
+/* Neon Coast Cover Studio — the editor. Dark, neon, and out of the way of the art. */
+@font-face {
+  font-family: 'Anton';
+  src: url('./fonts/Anton-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+html, body { margin: 0; min-height: 100%; background: #0b0512; color: #f2ecf7; font: 15px/1.45 system-ui, sans-serif; }
+.app { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 24px; box-sizing: border-box; }
+.controls { display: flex; flex-direction: column; gap: 16px; width: 320px; flex-shrink: 0; }
+.controls h1 { margin: 0; font-family: 'Anton', system-ui, sans-serif; font-size: 30px; letter-spacing: 0.5px; color: #ffd166; text-transform: uppercase; }
+.controls .tag { margin: 0; color: #b9a8cc; }
+fieldset { margin: 0; padding: 12px; border: 1px solid #3a2350; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
+legend { font-weight: 700; color: #ff7ab8; padding: 0 6px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+label.check { flex-direction: row; align-items: center; font-weight: 400; }
+input[type=text] { font: inherit; padding: 8px; border: 1px solid #5b3a78; border-radius: 6px; background: #1c0b2e; color: #fff; }
+input[type=range] { width: 100%; accent-color: #ff2e88; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: inherit; font-weight: 700; padding: 9px 12px; border: 1px solid #5b3a78; border-radius: 6px; background: #241233; color: #f2ecf7; cursor: pointer; }
+button:hover { border-color: #ff2e88; }
+button.active { background: #ff2e88; border-color: #ff2e88; color: #fff; }
+button.primary { background: linear-gradient(90deg, #ff2e88, #ff7a59); border: 0; color: #fff; }
+#panel-list { display: flex; flex-direction: column; gap: 8px; }
+.panel-row { display: flex; gap: 8px; align-items: center; }
+.panel-row.selected .panel-name { border-color: #00dcff; color: #8be9ff; }
+.panel-name { flex: 1; text-align: left; font-weight: 600; }
+.panel-row input[type=file] { display: none; }
+.pick { flex-direction: row; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; padding: 7px 10px; border: 1px solid #5b3a78; border-radius: 6px; background: #241233; color: #f2ecf7; cursor: pointer; white-space: nowrap; }
+.hint { font-weight: 400; color: #b9a8cc; font-size: 13px; }
+#status { margin: 0; color: #8be9ff; min-height: 1.2em; }
+#cover { max-width: calc(100vw - 400px); max-height: calc(100vh - 48px); box-shadow: 0 12px 44px rgba(0, 0, 0, 0.55); cursor: grab; }
+#cover:active { cursor: grabbing; }
+body.shot-cover .controls { display: none; }
+body.shot-cover .app { padding: 0; }
+body.shot-cover #cover { max-width: none; max-height: none; width: 100vw; height: 100vh; box-shadow: none; }
