@@ -1,12 +1,19 @@
-// Neon Coast Cover Studio — a gta6-cover-art-01 entry (Node 22, standard library only): the app is this directory's
+// Vice City Case Files — a gta6-cover-art-01 entry (Node 22, standard library only): the app is this directory's
 // app/ folder, plain static files a desktop browser loads offline (app/index.html and its ES modules, no library
 // and no network request), and the program hands it in. It copies app/ and screenshots/ from beside this file to
 // /output and writes /output/dossier.json, the summary the judge reads, with the vendored make.fun library.
-// The app turns a person's own photos and a caption into a multi-panel poster cover — hero, grid, trio and solo
-// layouts, a sunset, neon-night or day colour grade, crop and position per panel, halftone, grain and vignette
-// effects, and one-click PNG export at 1080 x 1080, 1080 x 1350 and 1920 x 1080. Its lettering is set in Anton,
-// an SIL Open Font License face vendored under app/fonts/. Its two sample photos (app/samples/) were made for
-// make.fun with an image model and are free to use.
+// The app turns a person's own photos and a nickname into a multi-panel poster cover in the classic GTA cover
+// style — by default a clean photographic collage of the app's own Vice City photos (a rooftop terrace at
+// sunset, a marina yacht at golden hour, a jet-ski couple, a neon gas station at night — all made for this
+// entry with an image model, free to use), sharp and unfiltered with a gentle sunset or neon colour grade; an
+// optional comic filter illustrates any photo into a cover panel, and an illustrated comic-book collage drawn
+// from scratch (the duo, Ocean Drive, neon street, beach and wheel, skyline, the chase, the plan: bold
+// outlines, cel shading, painterly colour) is one click away per panel. Story templates in three acts (Heist,
+// Getaway, Night Drive, Beach Day), a wanted file with a nickname, a star level and an editable stats line,
+// one photo in three lives, hero, hero-4, grid, trio and solo layouts, a sunset, neon-night or day colour
+// grade, crop and position per panel, vignette and panel-shadow effects, and one-click PNG export at
+// 1080 x 1080, 1080 x 1350 and 1920 x 1080. Its lettering is set in Anton, an SIL Open Font License face
+// vendored under app/fonts/.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
