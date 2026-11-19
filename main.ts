@@ -13,7 +13,8 @@
 // one photo in three lives, hero, hero-4, grid, trio and solo layouts, a sunset, neon-night or day colour
 // grade, crop and position per panel, vignette and panel-shadow effects, and one-click PNG export at
 // 1080 x 1080, 1080 x 1350 and 1920 x 1080. Its lettering is set in Anton, an SIL Open Font License face
-// vendored under app/fonts/.
+// vendored under app/fonts/, and its script tagline in Pacifico, another SIL Open Font License face
+// vendored beside it.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
