@@ -3,19 +3,78 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Neon Coast Cover Studio</title>
+<title>Vice City Case Files</title>
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 <main class="app">
   <section class="controls">
-    <h1>Neon Coast Cover Studio</h1>
-    <p class="tag">Your photo, a caption, and a poster — in the spirit of a Vice City sunset. Photos never leave this machine.</p>
+    <h1>Vice City Case Files</h1>
+    <p class="tag">You are the protagonist — turn your photo into a Vice City poster with a wanted file. Photos never leave this machine.</p>
+
+    <fieldset>
+      <legend>Story — three acts, not just a grid</legend>
+      <div class="row">
+        <button type="button" data-template="heist">Heist</button>
+        <button type="button" data-template="getaway" class="active">Getaway</button>
+        <button type="button" data-template="nightdrive">Night Drive</button>
+        <button type="button" data-template="beachday">Beach Day</button>
+      </div>
+      <p class="hint">Each story sets the panels into three acts. Getaway, the default, is a clean photographic cover — the app's own Vice City photos, sharp and unfiltered; the illustrated GTA-style collage is one click away per panel, or in Beach Day.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Panels — click a panel in the preview, then pick its photo or illustration</legend>
+      <div id="panel-list"></div>
+      <div class="row">
+        <button type="button" data-art="duo">The Duo</button>
+        <button type="button" data-art="car">Ocean Drive</button>
+        <button type="button" data-art="neon">Neon Street</button>
+        <button type="button" data-art="beach">Beach &amp; Wheel</button>
+        <button type="button" data-art="skyline">Skyline</button>
+        <button type="button" data-art="chase">The Chase</button>
+        <button type="button" data-art="plan">The Plan</button>
+      </div>
+      <div class="row">
+        <button type="button" id="lives" class="primary">One photo, three lives</button>
+      </div>
+      <div class="row">
+        <button type="button" data-sample="rooftop-terrace">Sample: Rooftop Terrace</button>
+        <button type="button" data-sample="marina-yacht">Sample: Marina Yacht</button>
+        <button type="button" data-sample="jet-ski">Sample: Jet Ski</button>
+        <button type="button" data-sample="gas-station">Sample: Gas Station</button>
+      </div>
+      <div class="row">
+        <button type="button" id="fill-all">Fill all panels with this photo</button>
+        <button type="button" id="reset-crop">Reset crop</button>
+      </div>
+      <label>Zoom <input id="zoom" type="range" min="50" max="400" value="100"> <span class="hint">drag the preview to pan, scroll to zoom</span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Wanted file</legend>
+      <label>Your name <input id="your-name" type="text" maxlength="30" placeholder="e.g. Indra"></label>
+      <label>Nickname / poster title <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
+      <div class="row">
+        <button type="button" id="alias-gen">Generate alias</button>
+      </div>
+      <label>Wanted level</label>
+      <div class="row stars">
+        <button type="button" data-star="1" aria-label="Wanted level 1">★</button>
+        <button type="button" data-star="2" aria-label="Wanted level 2">★</button>
+        <button type="button" data-star="3" aria-label="Wanted level 3">★</button>
+        <button type="button" data-star="4" aria-label="Wanted level 4">★</button>
+        <button type="button" data-star="5" class="active" aria-label="Wanted level 5">★</button>
+      </div>
+      <label>Stats line <input id="stats" type="text" maxlength="60" value="Heists 12 • Getaways 9 • Heat ★★★★★"></label>
+      <label class="check"><input id="caption-gradient" type="checkbox" checked> Sunset gradient lettering</label>
+    </fieldset>
 
     <fieldset>
       <legend>Layout</legend>
       <div class="row">
         <button type="button" data-layout="hero" class="active">Hero</button>
+        <button type="button" data-layout="hero4">Hero 4</button>
         <button type="button" data-layout="grid">Grid</button>
         <button type="button" data-layout="trio">Trio</button>
         <button type="button" data-layout="solo">Solo</button>
@@ -31,31 +90,12 @@
       </div>
     </fieldset>
 
-    <fieldset>
-      <legend>Caption</legend>
-      <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-      <label>Tagline <input id="tagline" type="text" maxlength="60" value="Every sunset has a price"></label>
-      <label class="check"><input id="caption-gradient" type="checkbox" checked> Sunset gradient lettering</label>
-    </fieldset>
 
-    <fieldset>
-      <legend>Panels — click a panel in the preview, then pick its photo</legend>
-      <div id="panel-list"></div>
-      <div class="row">
-        <button type="button" data-sample="pier">Sample: Pier</button>
-        <button type="button" data-sample="boulevard">Sample: Boulevard</button>
-      </div>
-      <div class="row">
-        <button type="button" id="fill-all">Fill all panels with this photo</button>
-        <button type="button" id="reset-crop">Reset crop</button>
-      </div>
-      <label>Zoom <input id="zoom" type="range" min="50" max="400" value="100"> <span class="hint">drag the preview to pan, scroll to zoom</span></label>
-    </fieldset>
 
     <fieldset>
       <legend>Effects</legend>
-      <label class="check"><input type="checkbox" data-effect="halftone" checked> Halftone dots</label>
-      <label class="check"><input type="checkbox" data-effect="grain" checked> Grain</label>
+      <label class="check"><input type="checkbox" data-effect="halftone"> Halftone dots</label>
+      <label class="check"><input type="checkbox" data-effect="grain"> Grain</label>
       <label class="check"><input type="checkbox" data-effect="vignette" checked> Vignette</label>
       <label class="check"><input type="checkbox" data-effect="shadows" checked> Panel shadows</label>
     </fieldset>

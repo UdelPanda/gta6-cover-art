@@ -1,4 +1,4 @@
-/* Neon Coast Cover Studio — the editor. Dark, neon, and out of the way of the art. */
+/* Vice City Case Files — the editor. Dark, neon, and out of the way of the art. */
 @font-face {
   font-family: 'Anton';
   src: url('./fonts/Anton-Regular.ttf') format('truetype');
@@ -22,10 +22,13 @@ button { font: inherit; font-weight: 700; padding: 9px 12px; border: 1px solid #
 button:hover { border-color: #ff2e88; }
 button.active { background: #ff2e88; border-color: #ff2e88; color: #fff; }
 button.primary { background: linear-gradient(90deg, #ff2e88, #ff7a59); border: 0; color: #fff; }
+.stars button { font-size: 20px; padding: 5px 12px; color: #5b3a78; }
+.stars button.active { background: #241233; border-color: #ffd166; color: #ffd166; }
+.panel-grade { font: inherit; padding: 7px 6px; border: 1px solid #5b3a78; border-radius: 6px; background: #1c0b2e; color: #f2ecf7; }
 #panel-list { display: flex; flex-direction: column; gap: 8px; }
-.panel-row { display: flex; gap: 8px; align-items: center; }
+.panel-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .panel-row.selected .panel-name { border-color: #00dcff; color: #8be9ff; }
-.panel-name { flex: 1; text-align: left; font-weight: 600; }
+.panel-name { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-weight: 600; }
 .panel-row input[type=file] { display: none; }
 .pick { flex-direction: row; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; padding: 7px 10px; border: 1px solid #5b3a78; border-radius: 6px; background: #241233; color: #f2ecf7; cursor: pointer; white-space: nowrap; }
 .hint { font-weight: 400; color: #b9a8cc; font-size: 13px; }
