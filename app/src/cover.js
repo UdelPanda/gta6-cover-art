@@ -9,50 +9,52 @@
 // scratch; nothing is copied from any game.
 import { drawArtScene } from './art.js';
 
-/** Panel layouts: each panel and the caption band as fractions of the canvas. */
+/** Panel layouts: each panel and the title zone as fractions of the canvas.
+ * The panels take the top three fifths; the title zone below them is two
+ * fifths tall, so the caption is the poster's dominant element, not a strip. */
 export const LAYOUTS = {
   hero: {
     label: 'Hero',
     panels: [
-      { x: 0.0, y: 0.0, w: 0.62, h: 0.78 },
-      { x: 0.62, y: 0.0, w: 0.38, h: 0.385 },
-      { x: 0.62, y: 0.385, w: 0.38, h: 0.395 },
+      { x: 0.0, y: 0.0, w: 0.62, h: 0.60 },
+      { x: 0.62, y: 0.0, w: 0.38, h: 0.30 },
+      { x: 0.62, y: 0.30, w: 0.38, h: 0.30 },
     ],
-    band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
+    band: { x: 0.0, y: 0.60, w: 1.0, h: 0.40 },
   },
   hero4: {
     label: 'Hero 4',
     panels: [
-      { x: 0.0, y: 0.0, w: 0.62, h: 0.78 },
-      { x: 0.62, y: 0.0, w: 0.38, h: 0.26 },
-      { x: 0.62, y: 0.26, w: 0.38, h: 0.26 },
-      { x: 0.62, y: 0.52, w: 0.38, h: 0.26 },
+      { x: 0.0, y: 0.0, w: 0.62, h: 0.60 },
+      { x: 0.62, y: 0.0, w: 0.38, h: 0.20 },
+      { x: 0.62, y: 0.20, w: 0.38, h: 0.20 },
+      { x: 0.62, y: 0.40, w: 0.38, h: 0.20 },
     ],
-    band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
+    band: { x: 0.0, y: 0.60, w: 1.0, h: 0.40 },
   },
   grid: {
     label: 'Grid',
     panels: [
-      { x: 0.0, y: 0.0, w: 0.5, h: 0.39 },
-      { x: 0.5, y: 0.0, w: 0.5, h: 0.39 },
-      { x: 0.0, y: 0.39, w: 0.5, h: 0.39 },
-      { x: 0.5, y: 0.39, w: 0.5, h: 0.39 },
+      { x: 0.0, y: 0.0, w: 0.5, h: 0.30 },
+      { x: 0.5, y: 0.0, w: 0.5, h: 0.30 },
+      { x: 0.0, y: 0.30, w: 0.5, h: 0.30 },
+      { x: 0.5, y: 0.30, w: 0.5, h: 0.30 },
     ],
-    band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
+    band: { x: 0.0, y: 0.60, w: 1.0, h: 0.40 },
   },
   trio: {
     label: 'Trio',
     panels: [
-      { x: 0.0, y: 0.0, w: 0.333, h: 0.78 },
-      { x: 0.333, y: 0.0, w: 0.334, h: 0.78 },
-      { x: 0.667, y: 0.0, w: 0.333, h: 0.78 },
+      { x: 0.0, y: 0.0, w: 0.333, h: 0.60 },
+      { x: 0.333, y: 0.0, w: 0.334, h: 0.60 },
+      { x: 0.667, y: 0.0, w: 0.333, h: 0.60 },
     ],
-    band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
+    band: { x: 0.0, y: 0.60, w: 1.0, h: 0.40 },
   },
   solo: {
     label: 'Solo',
-    panels: [{ x: 0.0, y: 0.0, w: 1.0, h: 0.78 }],
-    band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
+    panels: [{ x: 0.0, y: 0.0, w: 1.0, h: 0.60 }],
+    band: { x: 0.0, y: 0.60, w: 1.0, h: 0.40 },
   },
 };
 
@@ -130,10 +132,11 @@ function halftoneTile() {
   return c;
 }
 
-/** Waits until the display face is usable on canvas, then resolves. */
+/** Waits until the display faces are usable on canvas, then resolves. */
 export async function ensureDisplayFont() {
   try {
     await document.fonts.load('100px Anton');
+    await document.fonts.load('100px Pacifico');
     await document.fonts.ready;
   } catch {
     // The canvas falls back to a bold system face.
@@ -269,6 +272,38 @@ function drawActChip(ctx, px, py, scale, text) {
   ctx.restore();
 }
 
+/** Draws a panel's location label, bottom left: the place name over its time, in a black bar like a location card. */
+function drawPlaceLabel(ctx, px, py, pw, ph, scale, place, time) {
+  if (!place) return;
+  const nameSize = Math.max(11, 15 * scale);
+  const timeSize = Math.max(10, 12 * scale);
+  const pad = 8 * scale;
+  ctx.save();
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `800 ${nameSize}px system-ui, sans-serif`;
+  const nameW = ctx.measureText(place.toUpperCase()).width;
+  ctx.font = `700 ${timeSize}px system-ui, sans-serif`;
+  const timeW = time ? ctx.measureText(time.toUpperCase()).width : 0;
+  const w = Math.max(nameW, timeW) + pad * 2;
+  const h = nameSize + (time ? timeSize + 3 * scale : 0) + pad * 2;
+  const x = px + 8 * scale;
+  const y = py + ph - 8 * scale - h;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 3 * scale);
+  ctx.fillStyle = 'rgba(8, 2, 16, 0.88)';
+  ctx.fill();
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 ${nameSize}px system-ui, sans-serif`;
+  ctx.fillText(place.toUpperCase(), x + pad, y + pad + nameSize);
+  if (time) {
+    ctx.fillStyle = '#ffd166';
+    ctx.font = `700 ${timeSize}px system-ui, sans-serif`;
+    ctx.fillText(time.toUpperCase(), x + pad, y + pad + nameSize + 3 * scale + timeSize);
+  }
+  ctx.restore();
+}
+
 /** Draws a panel: photo or illustration, grade, border, act label, and optional drop shadow. */
 function drawPanel(ctx, rect, panel, grade, effects, scale) {
   const gap = GAP * scale;
@@ -309,20 +344,7 @@ function drawPanel(ctx, rect, panel, grade, effects, scale) {
   ctx.lineWidth = 2 * scale;
   ctx.strokeRect(px, py, pw, ph);
   if (panel.act) drawActChip(ctx, px, py, scale, panel.act);
-}
-
-/** A small sun: a plain gradient disc, the app's own emblem. */
-function drawSunEmblem(ctx, cx, cy, r) {
-  const g = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
-  g.addColorStop(0, '#ffd166');
-  g.addColorStop(0.55, '#ff7a59');
-  g.addColorStop(1, '#ff2e88');
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.restore();
+  if (panel.place) drawPlaceLabel(ctx, px, py, pw, ph, scale, panel.place, panel.time);
 }
 
 /** One thick blade of the palm emblem: out along a curve, back along a near-parallel one. */
@@ -370,17 +392,6 @@ function drawPalmEmblem(ctx, x, y, s) {
   ctx.restore();
 }
 
-/** Fits the caption to the band, shrinking it until it fits. */
-function fitCaptionSize(ctx, text, maxWidth, startSize) {
-  let size = startSize;
-  ctx.font = `400 ${size}px Anton, sans-serif`;
-  while (ctx.measureText(text).width > maxWidth && size > 10) {
-    size -= 2;
-    ctx.font = `400 ${size}px Anton, sans-serif`;
-  }
-  return size;
-}
-
 /** The width of a letterspaced string, for centring it. */
 function spacedWidth(ctx, text, spacing) {
   let w = 0;
@@ -401,7 +412,76 @@ function drawSpaced(ctx, text, x, y, spacing, align = 'left') {
 /** The case file line, constant for every cover: number, city, date. */
 const CASE_FILE = 'CASE #VC-2026-1119 · VICE CITY, LEONIDA · 19 NOV 2026';
 
-/** Draws the caption band as a police case file: case line and wanted level on top, the nickname in bold, the stats below. */
+/** Fits the giant title to its width: grows from the start size until it fills the width or hits the cap, then shrinks back if it overshoots. */
+function fitTitleSize(ctx, text, maxWidth, startSize, maxSize) {
+  let size = startSize;
+  ctx.font = `400 ${size}px Anton, sans-serif`;
+  while (ctx.measureText(text).width < maxWidth && size < maxSize) {
+    size += 4;
+    ctx.font = `400 ${size}px Anton, sans-serif`;
+  }
+  while (ctx.measureText(text).width > maxWidth && size > 10) {
+    size -= 2;
+    ctx.font = `400 ${size}px Anton, sans-serif`;
+  }
+  return size;
+}
+
+/** A round "EST. 2026" badge: gold disc, dark ring, the year in bold. */
+function drawEstBadge(ctx, cx, cy, r) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+  g.addColorStop(0, '#ffe9a3');
+  g.addColorStop(0.6, '#ffd166');
+  g.addColorStop(1, '#f5a623');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, r * 0.09);
+  ctx.strokeStyle = '#14081f';
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+  ctx.lineWidth = Math.max(1, r * 0.04);
+  ctx.strokeStyle = 'rgba(20, 8, 31, 0.55)';
+  ctx.stroke();
+  ctx.fillStyle = '#14081f';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `800 ${r * 0.34}px system-ui, sans-serif`;
+  ctx.fillText('EST.', cx, cy - r * 0.30);
+  ctx.font = `900 ${r * 0.52}px system-ui, sans-serif`;
+  ctx.fillText('2026', cx, cy + r * 0.28);
+  ctx.restore();
+}
+
+/** A "VOL. 01" tag: a cyan ticket stub at the cover's top-right corner. */
+function drawVolTag(ctx, w, scale) {
+  const text = 'VOL. 01';
+  const size = Math.max(12, 20 * scale);
+  ctx.save();
+  ctx.font = `900 ${size}px system-ui, sans-serif`;
+  const pad = 10 * scale;
+  const tw = ctx.measureText(text).width + pad * 2;
+  const th = 30 * scale;
+  const x = w - 12 * scale - tw;
+  const y = 12 * scale;
+  ctx.beginPath();
+  ctx.roundRect(x, y, tw, th, 3 * scale);
+  ctx.fillStyle = '#00dcff';
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, 2.5 * scale);
+  ctx.strokeStyle = '#14081f';
+  ctx.stroke();
+  ctx.fillStyle = '#14081f';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + tw / 2, y + th / 2 + 1 * scale);
+  ctx.restore();
+}
+
+/** Draws the title zone as a poster, not a strip: case file and wanted level on top, a GIANT gradient title that dominates the cover, a pink neon script tagline tucked under it, the stats, and a bottom tagline strip with palm silhouettes. */
 function drawCaptionBand(ctx, band, state, scale) {
   const { x: bx, y: by, w: bw, h: bh } = band;
   ctx.fillStyle = BAND;
@@ -414,25 +494,15 @@ function drawCaptionBand(ctx, band, state, scale) {
   ctx.fillRect(bx, by, bw, Math.max(3, 4 * scale));
 
   const caption = (state.caption || '').trim().toUpperCase();
+  const tagline = (state.tagline || '').trim();
   const stats = (state.stats || '').trim().toUpperCase();
-  const pad = bw * 0.06;
-  const emblemR = Math.min(bh * 0.26, bw * 0.035);
-  // The palm emblem's fronds reach 0.28 * band-height left of its centre, which can exceed the
-  // 2.6 * emblemR text reserve when the band is tall and narrow (portrait/square): reserve enough
-  // that a long caption never runs under the fronds.
-  const reserve = Math.max(emblemR * 2.6, emblemR * 1.3 + bh * 0.28);
-  const textLeft = bx + pad + reserve;
-  const textRight = bx + bw - pad - reserve;
-  const textWidth = textRight - textLeft;
-
-  drawSunEmblem(ctx, bx + pad + emblemR, by + bh * 0.5, emblemR);
-  drawPalmEmblem(ctx, bx + bw - pad - emblemR * 1.3, by + bh * 0.8, bh * 0.01);
+  const strip = (state.strip || '').trim().toUpperCase();
+  const pad = bw * 0.04;
 
   // Top strip: the case file on the left, WANTED and the star level on the right.
-  // The strip shrinks until the case line and the wanted block both fit.
   const wanted = Math.max(1, Math.min(5, state.wanted || 1));
   const stars = '★'.repeat(wanted) + '☆'.repeat(5 - wanted);
-  let stripSize = Math.max(10, bh * 0.105);
+  let stripSize = Math.max(10, bh * 0.055);
   ctx.save();
   ctx.textBaseline = 'middle';
   ctx.font = `700 ${stripSize}px system-ui, sans-serif`;
@@ -444,7 +514,7 @@ function drawCaptionBand(ctx, band, state, scale) {
     stripSize = Math.max(8, stripSize * (caseAvailable / caseWidth));
     ctx.font = `700 ${stripSize}px system-ui, sans-serif`;
   }
-  const stripY = by + bh * 0.13;
+  const stripY = by + bh * 0.055;
   ctx.fillStyle = '#8be9ff';
   ctx.textAlign = 'left';
   drawSpaced(ctx, CASE_FILE, bx + pad, stripY, stripSize * 0.18, 'left');
@@ -455,9 +525,17 @@ function drawCaptionBand(ctx, band, state, scale) {
   ctx.fillText(stars, bx + bw - pad, stripY);
   ctx.restore();
 
+  // The EST. 2026 badge sits left of the title, like a collector's seal.
+  const badgeR = bh * 0.105;
+  const titleCy = by + bh * 0.45;
+  drawEstBadge(ctx, bx + pad + badgeR, titleCy, badgeR);
+  const textLeft = bx + pad + badgeR * 2 + bw * 0.015;
+  const textRight = bx + bw - pad;
+  const textWidth = textRight - textLeft;
+
+  // The GIANT title: grown to fill its width, gradient-filled, thick black outline, purple drop shadow.
   if (caption) {
-    const size = fitCaptionSize(ctx, caption, textWidth, bh * 0.5);
-    const cy = by + bh * 0.52;
+    const size = fitTitleSize(ctx, caption, textWidth, bh * 0.48, bh * 0.58);
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -465,30 +543,71 @@ function drawCaptionBand(ctx, band, state, scale) {
     if (state.captionGradient) {
       const g = ctx.createLinearGradient(textLeft, 0, textRight, 0);
       g.addColorStop(0, '#ff2e88');
-      g.addColorStop(0.5, '#ff9a3d');
+      g.addColorStop(0.45, '#ff9a3d');
       g.addColorStop(1, '#ffd166');
       ctx.fillStyle = g;
     } else {
       ctx.fillStyle = '#ffffff';
     }
-    ctx.lineWidth = Math.max(2, size * 0.06);
-    ctx.strokeStyle = 'rgba(10, 2, 18, 0.9)';
-    ctx.shadowColor = 'rgba(255, 46, 136, 0.55)';
-    ctx.shadowBlur = size * 0.18;
-    ctx.shadowOffsetY = size * 0.05;
-    ctx.strokeText(caption, (textLeft + textRight) / 2, cy);
-    ctx.fillText(caption, (textLeft + textRight) / 2, cy);
+    ctx.lineWidth = Math.max(3, size * 0.09);
+    ctx.strokeStyle = '#0b0512';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(120, 20, 140, 0.85)';
+    ctx.shadowBlur = size * 0.22;
+    ctx.shadowOffsetY = size * 0.06;
+    ctx.strokeText(caption, (textLeft + textRight) / 2, titleCy);
+    ctx.fillText(caption, (textLeft + textRight) / 2, titleCy);
     ctx.restore();
   }
+
+  // The script tagline in pink neon, tucked just under the title's foot.
+  if (tagline) {
+    const tSize = bh * 0.115;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `400 ${tSize}px Pacifico, cursive`;
+    ctx.fillStyle = '#ff5e9e';
+    ctx.shadowColor = 'rgba(255, 46, 136, 0.9)';
+    ctx.shadowBlur = tSize * 0.45;
+    ctx.shadowOffsetY = 0;
+    ctx.fillText(tagline, (textLeft + textRight) / 2, by + bh * 0.74);
+    ctx.restore();
+  }
+
+  // The stats line, small and letterspaced, under the tagline.
   if (stats) {
-    const tSize = Math.max(11, bh * 0.115);
+    const tSize = Math.max(11, bh * 0.058);
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `700 ${tSize}px system-ui, sans-serif`;
     ctx.fillStyle = '#8be9ff';
-    drawSpaced(ctx, stats, (textLeft + textRight) / 2, by + bh * 0.85, tSize * 0.28, 'center');
+    drawSpaced(ctx, stats, (textLeft + textRight) / 2, by + bh * 0.87, tSize * 0.28, 'center');
     ctx.restore();
+  }
+
+  // The bottom tagline strip: a gradient rule, the tagline, and small palm silhouettes flanking it.
+  if (strip) {
+    const ruleY = by + bh * 0.925;
+    const sg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+    sg.addColorStop(0, 'rgba(255, 46, 136, 0)');
+    sg.addColorStop(0.5, 'rgba(255, 46, 136, 0.9)');
+    sg.addColorStop(1, 'rgba(255, 46, 136, 0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(bx, ruleY, bw, Math.max(2, 2.5 * scale));
+    const tSize = Math.max(10, bh * 0.052);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${tSize}px system-ui, sans-serif`;
+    ctx.fillStyle = '#ffd166';
+    const stripY = by + bh * 0.962;
+    drawSpaced(ctx, strip, (bx + bw) / 2, stripY, tSize * 0.30, 'center');
+    ctx.restore();
+    const palmS = bh * 0.0013;
+    drawPalmEmblem(ctx, bx + pad * 0.9, by + bh * 0.99, palmS);
+    drawPalmEmblem(ctx, bx + bw - pad * 0.9, by + bh * 0.99, palmS);
   }
 }
 
@@ -520,6 +639,7 @@ export function drawCover(canvas, state) {
     h: layout.band.h * h,
   };
   drawCaptionBand(ctx, band, state, scale);
+  drawVolTag(ctx, w, scale);
   if (effects.vignette) {
     const v = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.72);
     v.addColorStop(0, 'rgba(0,0,0,0)');

@@ -20,55 +20,63 @@ const SIZES = {
   wide: { label: 'Wide 1920 x 1080', w: 1920, h: 1080 },
 };
 
-/** Story templates: three acts, each an illustrated GTA-style panel, caption, stats, and wanted level — except Getaway, the default, which is the clean photographic cover: the four Vice City photos, sharp and unfiltered. The duo only ever leads a hero layout — its wide composition would crop badly in a narrow trio panel. The dy crops keep every face in frame: the rooftop woman's face sits high in a portrait photo, the marina man's head sits high, the jet-ski couple's faces sit high in a short panel. */
+/** Story templates: three acts, each an illustrated GTA-style panel, caption, stats, and wanted level — except Getaway, the default, which is the clean photographic cover: the four Vice City photos, sharp and unfiltered. The duo only ever leads a hero layout — its wide composition would crop badly in a narrow trio panel. The dy crops keep every face in frame: the rooftop woman's face sits high in a portrait photo, the marina man's head sits high, the jet-ski couple's faces sit high in a short panel. Each panel also carries a location name and time for its place label, and each template a script tagline and a bottom-strip tagline. */
 const TEMPLATES = {
   heist: {
     label: 'Heist',
     layout: 'trio',
     caption: 'The Inside Job',
+    tagline: 'The perfect score',
+    strip: 'EVERY HEIST HAS A PLAN',
     stats: 'Heists 12 • Getaways 9 • Heat ★★★★☆',
     wanted: 4,
     panels: [
-      { art: 'plan', act: 'ACT 1 · THE PLAN' },
-      { art: 'chase', act: 'ACT 2 · THE JOB' },
-      { art: 'skyline', act: 'ACT 3 · THE GETAWAY' },
+      { art: 'plan', act: 'ACT 1 · THE PLAN', place: 'THE VAULT', time: '9:00 PM' },
+      { art: 'chase', act: 'ACT 2 · THE JOB', place: 'OCEAN DRIVE', time: '11:30 PM' },
+      { art: 'skyline', act: 'ACT 3 · THE GETAWAY', place: 'THE SKYLINE', time: '1:15 AM' },
     ],
   },
   getaway: {
     label: 'Getaway',
     layout: 'hero4',
     caption: 'Sunset Heist',
+    tagline: 'One last sunset',
+    strip: 'ONE CITY · NO RULES · COMING SOON',
     stats: 'Heists 12 • Getaways 9 • Heat ★★★★★',
     wanted: 5,
     panels: [
-      { photo: 'rooftop-terrace', act: 'ACT 1 · THE ROOFTOP', scale: 1, dx: 0, dy: 0.24 },
-      { photo: 'jet-ski', act: 'ACT 2 · THE RIDE', scale: 1, dx: 0, dy: 0.06 },
-      { photo: 'marina-yacht', act: 'ACT 3 · THE MARINA', scale: 1, dx: 0, dy: 0.18 },
-      { photo: 'gas-station', act: 'ACT 4 · THE NIGHT', scale: 1, dx: 0, dy: 0 },
+      { photo: 'rooftop-terrace', act: 'ACT 1 · THE ROOFTOP', place: 'ROOFTOP TERRACE', time: '6:42 PM', scale: 1, dx: 0, dy: 0.24 },
+      { photo: 'jet-ski', act: 'ACT 2 · THE RIDE', place: 'JET SKI RUN', time: '7:15 PM', scale: 1, dx: 0, dy: 0.06 },
+      { photo: 'marina-yacht', act: 'ACT 3 · THE MARINA', place: 'MARINA', time: '8:05 PM', scale: 1, dx: 0, dy: 0.18 },
+      { photo: 'gas-station', act: 'ACT 4 · THE NIGHT', place: 'GAS STATION', time: '11:48 PM', scale: 1, dx: 0, dy: 0 },
     ],
   },
   nightdrive: {
     label: 'Night Drive',
     layout: 'trio',
     caption: 'Midnight Run',
+    tagline: 'The city never sleeps',
+    strip: 'EVERY MILE HAS A STORY',
     stats: 'Clubs 21 • Miles 410 • Heat ★★★☆☆',
     wanted: 3,
     panels: [
-      { art: 'neon', act: 'ACT 1 · THE CLUB' },
-      { art: 'car', act: 'ACT 2 · THE DRIVE' },
-      { art: 'skyline', act: 'ACT 3 · THE CITY' },
+      { art: 'neon', act: 'ACT 1 · THE CLUB', place: 'THE CLUB', time: '10:20 PM' },
+      { art: 'car', act: 'ACT 2 · THE DRIVE', place: 'OCEAN DRIVE', time: '11:05 PM' },
+      { art: 'skyline', act: 'ACT 3 · THE CITY', place: 'THE CITY', time: '12:40 AM' },
     ],
   },
   beachday: {
     label: 'Beach Day',
     layout: 'hero',
     caption: 'Coast Run',
+    tagline: 'One last summer',
+    strip: 'EVERY SUMMER HAS A STORY',
     stats: 'Waves 8 • Pier 1 • Heat ★★☆☆☆',
     wanted: 2,
     panels: [
-      { art: 'beach', act: 'ACT 2 · THE BEACH' },
-      { art: 'skyline', act: 'ACT 1 · THE STRIP' },
-      { art: 'duo', act: 'ACT 3 · THE SUNSET' },
+      { art: 'beach', act: 'ACT 2 · THE BEACH', place: 'THE BEACH', time: '5:30 PM' },
+      { art: 'skyline', act: 'ACT 1 · THE STRIP', place: 'THE STRIP', time: '6:15 PM' },
+      { art: 'duo', act: 'ACT 3 · THE SUNSET', place: 'THE SUNSET', time: '7:00 PM' },
     ],
   },
 };
@@ -86,6 +94,7 @@ const ALIAS_LAST = ['Ghost', 'Viper', 'King', 'Queen', 'Saint', 'Shark', 'Fox', 
 
 const canvas = document.getElementById('cover');
 const captionInput = document.getElementById('caption');
+const taglineInput = document.getElementById('tagline');
 const nameInput = document.getElementById('your-name');
 const statsInput = document.getElementById('stats');
 const statusEl = document.getElementById('status');
@@ -97,6 +106,8 @@ const state = {
   layout: 'hero',
   grade: 'sunset',
   caption: 'Sunset Heist',
+  tagline: 'One last sunset',
+  strip: 'ONE CITY · NO RULES · COMING SOON',
   stats: 'Heists 12 • Getaways 9 • Heat ★★★★★',
   wanted: 5,
   captionGradient: true,
@@ -138,12 +149,14 @@ function rebuildPanels() {
   const old = state.panels;
   state.panels = [];
   for (let i = 0; i < count; i += 1) {
-    const prev = old[i] || old[0] || { photo: null, art: null, grade: null, act: null, scale: 1, dx: 0, dy: 0, comic: false };
+    const prev = old[i] || old[0] || { photo: null, art: null, grade: null, act: null, place: null, time: null, scale: 1, dx: 0, dy: 0, comic: false };
     state.panels.push({
       photo: prev.photo || null,
       art: prev.photo ? null : (prev.art || null),
       grade: prev.grade || null,
       act: prev.act || null,
+      place: prev.place || null,
+      time: prev.time || null,
       scale: prev.scale || 1,
       dx: prev.dx || 0,
       dy: prev.dy || 0,
@@ -172,15 +185,18 @@ function syncControls() {
   document.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('active', b.dataset.size === state.size));
   document.querySelectorAll('[data-star]').forEach((b) => b.classList.toggle('active', Number(b.dataset.star) <= state.wanted));
   captionInput.value = state.caption;
+  taglineInput.value = state.tagline;
   statsInput.value = state.stats;
 }
 
-/** Applies a story template: its layout, its three acts, its caption, stats, and wanted level. */
+/** Applies a story template: its layout, its three acts, its caption, tagline, strip, stats, and wanted level. */
 function applyTemplate(name) {
   const template = TEMPLATES[name] || TEMPLATES.getaway;
   state.template = name;
   state.layout = template.layout;
   state.caption = template.caption;
+  state.tagline = template.tagline;
+  state.strip = template.strip;
   state.stats = template.stats;
   state.wanted = template.wanted;
   state.panels = template.panels.map((p) => {
@@ -190,6 +206,8 @@ function applyTemplate(name) {
       art: img ? null : (p.art || null),
       grade: p.grade || null,
       act: p.act,
+      place: p.place || null,
+      time: p.time || null,
       scale: p.scale || 1,
       dx: p.dx || 0,
       dy: p.dy || 0,
@@ -389,6 +407,10 @@ function wireControls() {
     state.caption = captionInput.value;
     redraw();
   });
+  taglineInput.addEventListener('input', () => {
+    state.tagline = taglineInput.value;
+    redraw();
+  });
   statsInput.addEventListener('input', () => {
     state.stats = statsInput.value;
     redraw();
@@ -504,6 +526,13 @@ async function init() {
       setCaption: (text) => {
         state.caption = text;
         captionInput.value = text;
+      },
+      setTagline: (text) => {
+        state.tagline = text;
+        taglineInput.value = text;
+      },
+      setStrip: (text) => {
+        state.strip = text;
       },
       setStats: (text) => {
         state.stats = text;

@@ -12,7 +12,7 @@ const SAMPLES = {
 };
 
 export async function runShot(shot, query, api) {
-  const { state, SIZES, loadImage, redraw, syncControls, setLayout, applyTemplate, setCaption, setStats, setWanted } = api;
+  const { state, SIZES, loadImage, redraw, syncControls, setLayout, applyTemplate, setCaption, setTagline, setStrip, setStats, setWanted } = api;
   if (shot === 'cover') document.body.classList.add('shot-cover');
   const template = query.get('template');
   if (template) applyTemplate(template);
@@ -21,6 +21,8 @@ export async function runShot(shot, query, api) {
   const grade = query.get('grade');
   if (grade) state.grade = grade;
   setCaption(query.get('caption') ?? state.caption);
+  if (query.get('tagline')) setTagline(query.get('tagline'));
+  if (query.get('strip')) setStrip(query.get('strip'));
   setStats(query.get('stats') ?? state.stats);
   if (query.get('wanted')) setWanted(Number(query.get('wanted')));
   const sizeKey = query.get('size');
@@ -42,6 +44,19 @@ export async function runShot(shot, query, api) {
   if (acts) {
     for (let i = 0; i < state.panels.length; i += 1) {
       state.panels[i].act = acts[i % acts.length].trim() || null;
+    }
+  }
+  // Location labels per panel: place name and time, one per panel.
+  const places = query.get('places') ? query.get('places').split(',') : null;
+  if (places) {
+    for (let i = 0; i < state.panels.length; i += 1) {
+      state.panels[i].place = places[i % places.length].trim() || null;
+    }
+  }
+  const times = query.get('times') ? query.get('times').split(',') : null;
+  if (times) {
+    for (let i = 0; i < state.panels.length; i += 1) {
+      state.panels[i].time = times[i % times.length].trim() || null;
     }
   }
   // Grades per panel: one photo, three lives.
