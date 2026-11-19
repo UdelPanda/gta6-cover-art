@@ -1,11 +1,17 @@
-// Neon Coast Cover Studio — the editor wiring.
+// Vice City Case Files — the editor wiring.
 //
-// Photo pickers per panel, caption and tagline editing, layout and grade
-// switching, crop and position by dragging the preview, zoom, effects,
-// and one-click export at 1080 x 1080, 1080 x 1350 and 1920 x 1080.
-// Photos stay on the user's machine: they are read with object URLs and
-// are never uploaded anywhere.
+// The default cover is a CLEAN photographic multi-panel collage: the app's own Vice City photos (rooftop
+// terrace, jet ski, marina yacht, neon gas station), sharp and unfiltered, with a gentle sunset grade and the
+// wanted case-file band. The comic filter is an opt-in per panel: it illustrates a photo into a GTA-style
+// panel, but it is OFF unless the user turns it on — a photo is never posterized by default. The app's own
+// GTA-style illustrated collage (the duo, Ocean Drive, neon street, beach and wheel, skyline, the chase, the
+// plan) stays available as an art choice per panel and in the Beach Day template. Story templates in three
+// acts, the wanted file (nickname, star level, stats), photo pickers with crop and position by dragging the
+// preview, zoom, one photo in three lives, effects, and one-click export at 1080 x 1080, 1080 x 1350 and
+// 1920 x 1080. Photos stay on the user's machine: they are read with object URLs and are never uploaded
+// anywhere.
 import { drawCover, renderCover, ensureDisplayFont, LAYOUTS, GRADES } from './cover.js';
+import { ART_SCENES } from './art.js';
 import { runShot } from './shots.js';
 
 const SIZES = {
@@ -14,21 +20,89 @@ const SIZES = {
   wide: { label: 'Wide 1920 x 1080', w: 1920, h: 1080 },
 };
 
+/** Story templates: three acts, each an illustrated GTA-style panel, caption, stats, and wanted level — except Getaway, the default, which is the clean photographic cover: the four Vice City photos, sharp and unfiltered. The duo only ever leads a hero layout — its wide composition would crop badly in a narrow trio panel. The dy crops keep every face in frame: the rooftop woman's face sits high in a portrait photo, the marina man's head sits high, the jet-ski couple's faces sit high in a short panel. */
+const TEMPLATES = {
+  heist: {
+    label: 'Heist',
+    layout: 'trio',
+    caption: 'The Inside Job',
+    stats: 'Heists 12 • Getaways 9 • Heat ★★★★☆',
+    wanted: 4,
+    panels: [
+      { art: 'plan', act: 'ACT 1 · THE PLAN' },
+      { art: 'chase', act: 'ACT 2 · THE JOB' },
+      { art: 'skyline', act: 'ACT 3 · THE GETAWAY' },
+    ],
+  },
+  getaway: {
+    label: 'Getaway',
+    layout: 'hero4',
+    caption: 'Sunset Heist',
+    stats: 'Heists 12 • Getaways 9 • Heat ★★★★★',
+    wanted: 5,
+    panels: [
+      { photo: 'rooftop-terrace', act: 'ACT 1 · THE ROOFTOP', scale: 1, dx: 0, dy: 0.24 },
+      { photo: 'jet-ski', act: 'ACT 2 · THE RIDE', scale: 1, dx: 0, dy: 0.06 },
+      { photo: 'marina-yacht', act: 'ACT 3 · THE MARINA', scale: 1, dx: 0, dy: 0.18 },
+      { photo: 'gas-station', act: 'ACT 4 · THE NIGHT', scale: 1, dx: 0, dy: 0 },
+    ],
+  },
+  nightdrive: {
+    label: 'Night Drive',
+    layout: 'trio',
+    caption: 'Midnight Run',
+    stats: 'Clubs 21 • Miles 410 • Heat ★★★☆☆',
+    wanted: 3,
+    panels: [
+      { art: 'neon', act: 'ACT 1 · THE CLUB' },
+      { art: 'car', act: 'ACT 2 · THE DRIVE' },
+      { art: 'skyline', act: 'ACT 3 · THE CITY' },
+    ],
+  },
+  beachday: {
+    label: 'Beach Day',
+    layout: 'hero',
+    caption: 'Coast Run',
+    stats: 'Waves 8 • Pier 1 • Heat ★★☆☆☆',
+    wanted: 2,
+    panels: [
+      { art: 'beach', act: 'ACT 2 · THE BEACH' },
+      { art: 'skyline', act: 'ACT 1 · THE STRIP' },
+      { art: 'duo', act: 'ACT 3 · THE SUNSET' },
+    ],
+  },
+};
+
+/** The grades one photo takes in its three lives: sunset, neon, day. */
+const LIVES = [
+  { grade: 'sunset', act: 'LIFE 1 · SUNSET', scale: 1.35, dx: -0.12, dy: 0 },
+  { grade: 'neon', act: 'LIFE 2 · NEON', scale: 1.15, dx: 0, dy: 0 },
+  { grade: 'day', act: 'LIFE 3 · DAY', scale: 1.35, dx: 0.12, dy: 0 },
+];
+
+/** Alias generator word lists: a criminal nickname from a name, or from thin air. */
+const ALIAS_FIRST = ['Neon', 'Midnight', 'Velvet', 'Crimson', 'Ghost', 'Silver', 'Turbo', 'Lonely', 'Sugar', 'Voodoo'];
+const ALIAS_LAST = ['Ghost', 'Viper', 'King', 'Queen', 'Saint', 'Shark', 'Fox', 'Wolf', 'Angel', 'Drifter'];
+
 const canvas = document.getElementById('cover');
 const captionInput = document.getElementById('caption');
-const taglineInput = document.getElementById('tagline');
+const nameInput = document.getElementById('your-name');
+const statsInput = document.getElementById('stats');
 const statusEl = document.getElementById('status');
 const panelList = document.getElementById('panel-list');
 const zoomInput = document.getElementById('zoom');
 
 const state = {
+  template: 'getaway',
   layout: 'hero',
   grade: 'sunset',
   caption: 'Sunset Heist',
-  tagline: 'Every sunset has a price',
+  stats: 'Heists 12 • Getaways 9 • Heat ★★★★★',
+  wanted: 5,
   captionGradient: true,
   size: 'wide',
-  effects: { halftone: true, grain: true, vignette: true, shadows: true },
+  // Clean by default: halftone dots and grain muddy a photo, so they start off — the user can turn them on.
+  effects: { halftone: false, grain: false, vignette: true, shadows: true },
   panels: [],
   selected: 0,
 };
@@ -45,14 +119,36 @@ export function loadImage(url) {
   });
 }
 
-/** Rebuilds the panel list for the current layout, keeping photos in order. */
+/** The app's own Vice City photos, preloaded so story templates can use them synchronously. */
+const NEW_SAMPLES = ['rooftop-terrace', 'marina-yacht', 'jet-ski', 'gas-station'];
+const sampleImgs = {};
+async function preloadSamples() {
+  for (const name of NEW_SAMPLES) {
+    try {
+      sampleImgs[name] = await loadImage(`samples/${name}.jpg`);
+    } catch {
+      // A missing photo leaves its panel on the illustration fallback.
+    }
+  }
+}
+
+/** Rebuilds the panel list for the current layout, keeping photos and art in order. */
 function rebuildPanels() {
   const count = LAYOUTS[state.layout].panels.length;
   const old = state.panels;
   state.panels = [];
   for (let i = 0; i < count; i += 1) {
-    const prev = old[i] || old[0] || { photo: null, scale: 1, dx: 0, dy: 0 };
-    state.panels.push({ photo: prev.photo, scale: prev.scale, dx: prev.dx, dy: prev.dy });
+    const prev = old[i] || old[0] || { photo: null, art: null, grade: null, act: null, scale: 1, dx: 0, dy: 0, comic: false };
+    state.panels.push({
+      photo: prev.photo || null,
+      art: prev.photo ? null : (prev.art || null),
+      grade: prev.grade || null,
+      act: prev.act || null,
+      scale: prev.scale || 1,
+      dx: prev.dx || 0,
+      dy: prev.dy || 0,
+      comic: prev.comic || false,
+    });
   }
   if (state.selected >= count) state.selected = 0;
 }
@@ -68,6 +164,44 @@ function redraw() {
   renderPanelList();
 }
 
+/** Keeps the editor's buttons in step with the state: template, layout, grade, stars. */
+function syncControls() {
+  document.querySelectorAll('[data-template]').forEach((b) => b.classList.toggle('active', b.dataset.template === state.template));
+  document.querySelectorAll('[data-layout]').forEach((b) => b.classList.toggle('active', b.dataset.layout === state.layout));
+  document.querySelectorAll('[data-grade]').forEach((b) => b.classList.toggle('active', b.dataset.grade === state.grade));
+  document.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('active', b.dataset.size === state.size));
+  document.querySelectorAll('[data-star]').forEach((b) => b.classList.toggle('active', Number(b.dataset.star) <= state.wanted));
+  captionInput.value = state.caption;
+  statsInput.value = state.stats;
+}
+
+/** Applies a story template: its layout, its three acts, its caption, stats, and wanted level. */
+function applyTemplate(name) {
+  const template = TEMPLATES[name] || TEMPLATES.getaway;
+  state.template = name;
+  state.layout = template.layout;
+  state.caption = template.caption;
+  state.stats = template.stats;
+  state.wanted = template.wanted;
+  state.panels = template.panels.map((p) => {
+    const img = p.photo ? sampleImgs[p.photo] : null;
+    return {
+      photo: img || null,
+      art: img ? null : (p.art || null),
+      grade: p.grade || null,
+      act: p.act,
+      scale: p.scale || 1,
+      dx: p.dx || 0,
+      dy: p.dy || 0,
+      comic: false,
+    };
+  });
+  state.selected = 0;
+  zoomInput.value = '100';
+  syncControls();
+  redraw();
+}
+
 /** Renders the per-panel controls for the selected panel. */
 function renderPanelList() {
   panelList.innerHTML = '';
@@ -77,7 +211,8 @@ function renderPanelList() {
     const label = document.createElement('button');
     label.type = 'button';
     label.className = 'panel-name';
-    label.textContent = `Panel ${i + 1}${panel.photo ? '' : ' — empty'}`;
+    const what = panel.photo ? (panel.comic ? 'comic photo' : 'photo') : panel.art ? ART_SCENES[panel.art].label : 'empty';
+    label.textContent = `Panel ${i + 1} — ${what}`;
     label.addEventListener('click', () => {
       state.selected = i;
       zoomInput.value = String(Math.round((panel.scale || 1) * 100));
@@ -96,6 +231,7 @@ function renderPanelList() {
       const img = await loadImage(URL.createObjectURL(f));
       photos.push(img);
       panel.photo = img;
+      panel.art = null;
       panel.scale = 1;
       panel.dx = 0;
       panel.dy = 0;
@@ -104,21 +240,89 @@ function renderPanelList() {
       redraw();
     });
     pick.append(file);
-    row.append(label, pick);
+    const grade = document.createElement('select');
+    grade.className = 'panel-grade';
+    grade.setAttribute('aria-label', `Grade for panel ${i + 1}`);
+    for (const [key, labelText] of [['', 'Grade: auto'], ['sunset', 'Sunset'], ['neon', 'Neon'], ['day', 'Day']]) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = labelText;
+      if ((panel.grade || '') === key) opt.selected = true;
+      grade.append(opt);
+    }
+    grade.addEventListener('change', () => {
+      panel.grade = grade.value || null;
+      redraw();
+    });
+    // Comic filter: opt-in per panel — illustrates this panel's photo into a GTA-style panel. Off by default.
+    const comic = document.createElement('label');
+    comic.className = 'check comic';
+    const comicBox = document.createElement('input');
+    comicBox.type = 'checkbox';
+    comicBox.checked = !!panel.comic;
+    comicBox.setAttribute('aria-label', `Comic filter for panel ${i + 1}`);
+    comicBox.addEventListener('change', () => {
+      panel.comic = comicBox.checked;
+      redraw();
+    });
+    comic.append(comicBox, document.createTextNode('Comic filter'));
+    row.append(label, pick, grade, comic);
     panelList.append(row);
   });
 }
 
-/** Fills every panel with the selected panel's photo. */
+/** Fills every panel with the selected panel's photo or illustration. */
 function fillAllWithSelected() {
-  const photo = state.panels[state.selected].photo;
-  if (!photo) return;
+  const src = state.panels[state.selected];
+  if (!src.photo && !src.art) return;
   state.panels.forEach((panel) => {
-    panel.photo = photo;
+    panel.photo = src.photo || null;
+    panel.art = src.photo ? null : src.art;
+    panel.comic = src.comic || false;
     panel.scale = 1;
     panel.dx = 0;
     panel.dy = 0;
   });
+  redraw();
+}
+
+/** One photo, three lives: one photo across three panels, each cropped and graded differently. */
+async function onePhotoThreeLives() {
+  let img = state.panels[state.selected].photo;
+  if (!img) img = state.panels.find((p) => p.photo)?.photo || null;
+  if (!img) {
+    img = await loadImage('samples/rooftop-terrace.jpg');
+    if (!photos.includes(img)) photos.push(img);
+  }
+  state.layout = 'trio';
+  rebuildPanels();
+  state.panels.forEach((panel, i) => {
+    const life = LIVES[i % LIVES.length];
+    panel.photo = img;
+    panel.art = null;
+    panel.grade = life.grade;
+    panel.act = life.act;
+    panel.scale = life.scale;
+    panel.dx = life.dx;
+    panel.dy = life.dy;
+  });
+  state.selected = 0;
+  zoomInput.value = '100';
+  syncControls();
+  redraw();
+}
+
+/** Generates a criminal nickname: from the typed name when there is one, else from thin air. */
+function generateAlias() {
+  const name = (nameInput.value || '').trim();
+  const last = ALIAS_LAST[Math.floor(Math.random() * ALIAS_LAST.length)];
+  if (name) {
+    state.caption = `${name} "The ${last}"`;
+  } else {
+    const first = ALIAS_FIRST[Math.floor(Math.random() * ALIAS_FIRST.length)];
+    state.caption = `The ${first} ${last}`;
+  }
+  captionInput.value = state.caption;
   redraw();
 }
 
@@ -131,9 +335,9 @@ async function exportCover(sizeKey) {
   out.toBlob((blob) => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `neon-coast-cover-${size.w}x${size.h}.png`;
+    a.download = `vice-city-case-file-${size.w}x${size.h}.png`;
     a.click();
-    statusEl.textContent = `Saved neon-coast-cover-${size.w}x${size.h}.png`;
+    statusEl.textContent = `Saved vice-city-case-file-${size.w}x${size.h}.png`;
   }, 'image/png');
 }
 
@@ -144,24 +348,27 @@ function setLayout(name) {
 }
 
 function wireControls() {
+  document.querySelectorAll('[data-template]').forEach((btn) => {
+    btn.addEventListener('click', () => applyTemplate(btn.dataset.template));
+  });
   document.querySelectorAll('[data-layout]').forEach((btn) => {
     btn.addEventListener('click', () => {
       setLayout(btn.dataset.layout);
-      document.querySelectorAll('[data-layout]').forEach((b) => b.classList.toggle('active', b === btn));
+      syncControls();
       redraw();
     });
   });
   document.querySelectorAll('[data-grade]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.grade = btn.dataset.grade;
-      document.querySelectorAll('[data-grade]').forEach((b) => b.classList.toggle('active', b === btn));
+      syncControls();
       redraw();
     });
   });
   document.querySelectorAll('[data-size]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.size = btn.dataset.size;
-      document.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('active', b === btn));
+      syncControls();
       redraw();
     });
   });
@@ -171,19 +378,28 @@ function wireControls() {
       redraw();
     });
   });
+  document.querySelectorAll('[data-star]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.wanted = Number(btn.dataset.star);
+      syncControls();
+      redraw();
+    });
+  });
   captionInput.addEventListener('input', () => {
     state.caption = captionInput.value;
     redraw();
   });
-  taglineInput.addEventListener('input', () => {
-    state.tagline = taglineInput.value;
+  statsInput.addEventListener('input', () => {
+    state.stats = statsInput.value;
     redraw();
   });
+  document.getElementById('alias-gen').addEventListener('click', generateAlias);
   document.getElementById('caption-gradient').addEventListener('change', (e) => {
     state.captionGradient = e.target.checked;
     redraw();
   });
   document.getElementById('fill-all').addEventListener('click', fillAllWithSelected);
+  document.getElementById('lives').addEventListener('click', onePhotoThreeLives);
   document.getElementById('reset-crop').addEventListener('click', () => {
     const panel = state.panels[state.selected];
     panel.scale = 1;
@@ -202,10 +418,22 @@ function wireControls() {
       if (!photos.includes(img)) photos.push(img);
       const panel = state.panels[state.selected];
       panel.photo = img;
+      panel.art = null;
       panel.scale = 1;
       panel.dx = 0;
       panel.dy = 0;
       zoomInput.value = '100';
+      redraw();
+    });
+  });
+  document.querySelectorAll('[data-art]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const panel = state.panels[state.selected];
+      panel.art = btn.dataset.art;
+      panel.photo = null;
+      panel.scale = 1;
+      panel.dx = 0;
+      panel.dy = 0;
       redraw();
     });
   });
@@ -260,7 +488,8 @@ function wireControls() {
 
 async function init() {
   wireControls();
-  rebuildPanels();
+  await preloadSamples();
+  applyTemplate('getaway');
   await ensureDisplayFont();
   const shot = new URLSearchParams(location.search).get('shot');
   if (shot) {
@@ -269,14 +498,19 @@ async function init() {
       SIZES,
       loadImage,
       redraw,
+      syncControls,
       setLayout,
+      applyTemplate,
       setCaption: (text) => {
         state.caption = text;
         captionInput.value = text;
       },
-      setTagline: (text) => {
-        state.tagline = text;
-        taglineInput.value = text;
+      setStats: (text) => {
+        state.stats = text;
+        statsInput.value = text;
+      },
+      setWanted: (n) => {
+        state.wanted = n;
       },
     });
   } else {

@@ -1,10 +1,13 @@
-// Neon Coast Cover Studio — the cover renderer.
+// Vice City Case Files — the cover renderer.
 //
 // Draws a multi-panel poster cover onto a canvas at its own pixel size:
 // a grid of comic-book panels (each holding a photo the user cropped and
-// positioned), a Vice City-style sunset or neon colour grade, and a bold
-// caption band in an original display face. All art is drawn here from
+// positioned, or one of the app's own original Vice City illustrations),
+// a Vice City-style sunset or neon colour grade, act labels for the story
+// templates, and a caption band styled as a police case file — case
+// number, wanted level, and the poster's stats. All art is drawn here from
 // scratch; nothing is copied from any game.
+import { drawArtScene } from './art.js';
 
 /** Panel layouts: each panel and the caption band as fractions of the canvas. */
 export const LAYOUTS = {
@@ -14,6 +17,16 @@ export const LAYOUTS = {
       { x: 0.0, y: 0.0, w: 0.62, h: 0.78 },
       { x: 0.62, y: 0.0, w: 0.38, h: 0.385 },
       { x: 0.62, y: 0.385, w: 0.38, h: 0.395 },
+    ],
+    band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
+  },
+  hero4: {
+    label: 'Hero 4',
+    panels: [
+      { x: 0.0, y: 0.0, w: 0.62, h: 0.78 },
+      { x: 0.62, y: 0.0, w: 0.38, h: 0.26 },
+      { x: 0.62, y: 0.26, w: 0.38, h: 0.26 },
+      { x: 0.62, y: 0.52, w: 0.38, h: 0.26 },
     ],
     band: { x: 0.0, y: 0.78, w: 1.0, h: 0.22 },
   },
@@ -55,9 +68,10 @@ export const GRADES = {
   },
   neon: {
     label: 'Neon Night',
-    filter: 'saturate(1.45) contrast(1.16) brightness(0.9)',
+    // Kept gentle on purpose: a heavy multiply wash crushes night photos into mud.
+    filter: 'saturate(1.35) contrast(1.10) brightness(0.96)',
     washes: [
-      { stops: [[0, 'rgba(255, 40, 160, 0.30)'], [1, 'rgba(40, 10, 90, 0.34)']], blend: 'multiply' },
+      { stops: [[0, 'rgba(255, 40, 160, 0.18)'], [1, 'rgba(40, 10, 90, 0.20)']], blend: 'multiply' },
       { stops: [[0, 'rgba(0, 220, 255, 0.10)'], [0.5, 'rgba(0, 220, 255, 0)'], [1, 'rgba(255, 40, 160, 0.16)']], blend: 'screen' },
     ],
   },
@@ -126,28 +140,101 @@ export async function ensureDisplayFont() {
   }
 }
 
-/** Draws one panel's photo, cropped and positioned by the panel's transform. */
+const comicCache = new Map();
+/**
+ * The comic filter: turns a photo into a GTA-style illustrated panel.
+ * Posterizes the colours (6 levels a channel), boosts saturation, then
+ * runs a Sobel edge pass and inks the strong edges dark — so any photo
+ * matches the illustrated cover. Processed at a capped size (720 px on
+ * the long side) and cached per photo + crop, so live preview stays fast.
+ */
+function comicCanvas(img, pw, ph, panel) {
+  const cap = 720;
+  const s = Math.min(1, cap / Math.max(pw, ph));
+  const ow = Math.max(2, Math.round(pw * s));
+  const oh = Math.max(2, Math.round(ph * s));
+  const key = `${img.src}|${ow}x${oh}|${(panel.scale || 1).toFixed(3)}|${(panel.dx || 0).toFixed(3)}|${(panel.dy || 0).toFixed(3)}`;
+  if (comicCache.has(key)) return comicCache.get(key);
+  const c = document.createElement('canvas');
+  c.width = ow;
+  c.height = oh;
+  const g = c.getContext('2d');
+  const base = Math.max(ow / img.naturalWidth, oh / img.naturalHeight);
+  const sc = base * (panel.scale || 1);
+  const dw = img.naturalWidth * sc;
+  const dh = img.naturalHeight * sc;
+  const dx = (ow - dw) / 2 + (panel.dx || 0) * ow;
+  const dy = (oh - dh) / 2 + (panel.dy || 0) * oh;
+  g.drawImage(img, dx, dy, dw, dh);
+  const data = g.getImageData(0, 0, ow, oh);
+  const d = data.data;
+  const levels = 6;
+  const post = (v) => Math.max(0, Math.min(255, (Math.round((v / 255) * (levels - 1)) / (levels - 1)) * 255));
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    d[i] = post(lum + (d[i] - lum) * 1.35);
+    d[i + 1] = post(lum + (d[i + 1] - lum) * 1.35);
+    d[i + 2] = post(lum + (d[i + 2] - lum) * 1.35);
+  }
+  // Sobel on the posterized luminance; strong edges get inked dark.
+  const lum = new Float32Array(ow * oh);
+  for (let i = 0; i < ow * oh; i += 1) {
+    lum[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  }
+  for (let y = 1; y < oh - 1; y += 1) {
+    for (let x = 1; x < ow - 1; x += 1) {
+      const i = y * ow + x;
+      const gx = -lum[i - ow - 1] - 2 * lum[i - 1] - lum[i + ow - 1]
+        + lum[i - ow + 1] + 2 * lum[i + 1] + lum[i + ow + 1];
+      const gy = -lum[i - ow - 1] - 2 * lum[i - ow] - lum[i - ow + 1]
+        + lum[i + ow - 1] + 2 * lum[i + ow] + lum[i + ow + 1];
+      const mag = Math.abs(gx) + Math.abs(gy);
+      if (mag > 110) {
+        const a = Math.min(1, (mag - 110) / 160) * 0.92;
+        const j = i * 4;
+        d[j] = d[j] * (1 - a) + 20 * a;
+        d[j + 1] = d[j + 1] * (1 - a) + 8 * a;
+        d[j + 2] = d[j + 2] * (1 - a) + 31 * a;
+      }
+    }
+  }
+  g.putImageData(data, 0, 0);
+  if (comicCache.size > 12) comicCache.clear();
+  comicCache.set(key, c);
+  return c;
+}
+
+/** Draws one panel's content: the user's photo, or one of the app's own illustrations. */
 function drawPanelPhoto(ctx, px, py, pw, ph, panel) {
   const img = panel.photo;
-  if (!img) {
-    const g = ctx.createLinearGradient(px, py, px + pw, py + ph);
-    g.addColorStop(0, '#3a1c52');
-    g.addColorStop(1, '#1c0b2e');
-    ctx.fillStyle = g;
-    ctx.fillRect(px, py, pw, ph);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.font = `bold ${Math.max(14, ph * 0.055)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('ADD A PHOTO', px + pw / 2, py + ph / 2);
+  if (img) {
+    // Comic on: the photo is illustrated first, then drawn like any panel.
+    if (panel.comic) {
+      ctx.drawImage(comicCanvas(img, pw, ph, panel), px, py, pw, ph);
+      return;
+    }
+    const base = Math.max(pw / img.naturalWidth, ph / img.naturalHeight);
+    const scale = base * (panel.scale || 1);
+    const dw = img.naturalWidth * scale;
+    const dh = img.naturalHeight * scale;
+    const dx = px + (pw - dw) / 2 + (panel.dx || 0) * pw;
+    const dy = py + (ph - dh) / 2 + (panel.dy || 0) * ph;
+    ctx.drawImage(img, dx, dy, dw, dh);
     return;
   }
-  const base = Math.max(pw / img.naturalWidth, ph / img.naturalHeight);
-  const scale = base * (panel.scale || 1);
-  const dw = img.naturalWidth * scale;
-  const dh = img.naturalHeight * scale;
-  const dx = px + (pw - dw) / 2 + (panel.dx || 0) * pw;
-  const dy = py + (ph - dh) / 2 + (panel.dy || 0) * ph;
-  ctx.drawImage(img, dx, dy, dw, dh);
+  if (panel.art) {
+    drawArtScene(ctx, panel.art, px, py, pw, ph);
+    return;
+  }
+  const g = ctx.createLinearGradient(px, py, px + pw, py + ph);
+  g.addColorStop(0, '#3a1c52');
+  g.addColorStop(1, '#1c0b2e');
+  ctx.fillStyle = g;
+  ctx.fillRect(px, py, pw, ph);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = `bold ${Math.max(14, ph * 0.055)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('ADD A PHOTO', px + pw / 2, py + ph / 2);
 }
 
 /** Washes the panel with the grade's colour overlays. */
@@ -163,21 +250,42 @@ function drawGradeWashes(ctx, px, py, pw, ph, grade) {
   }
 }
 
-/** Draws a panel: photo, grade, border, and optional drop shadow. */
+/** Draws a panel's act label chip, top left, when the story template names one. */
+function drawActChip(ctx, px, py, scale, text) {
+  const size = Math.max(12, 15 * scale);
+  ctx.save();
+  ctx.font = `700 ${size}px system-ui, sans-serif`;
+  const pad = 8 * scale;
+  const w = ctx.measureText(text).width + pad * 2;
+  const h = 26 * scale;
+  ctx.beginPath();
+  ctx.roundRect(px + 8 * scale, py + 8 * scale, w, h, 4 * scale);
+  ctx.fillStyle = 'rgba(10, 2, 18, 0.85)';
+  ctx.fill();
+  ctx.fillStyle = '#ffd166';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, px + 8 * scale + pad, py + 8 * scale + h / 2);
+  ctx.restore();
+}
+
+/** Draws a panel: photo or illustration, grade, border, act label, and optional drop shadow. */
 function drawPanel(ctx, rect, panel, grade, effects, scale) {
   const gap = GAP * scale;
   const px = rect.x + gap / 2;
   const py = rect.y + gap / 2;
   const pw = rect.w - gap;
   const ph = rect.h - gap;
+  // A panel may carry its own grade (one photo, three lives); otherwise the cover's grade.
+  const panelGrade = (panel.grade && GRADES[panel.grade]) || grade;
   ctx.save();
   ctx.beginPath();
   ctx.rect(px, py, pw, ph);
   ctx.clip();
-  ctx.filter = grade.filter;
+  ctx.filter = panelGrade.filter;
   drawPanelPhoto(ctx, px, py, pw, ph, panel);
   ctx.filter = 'none';
-  drawGradeWashes(ctx, px, py, pw, ph, grade);
+  drawGradeWashes(ctx, px, py, pw, ph, panelGrade);
   if (effects.halftone) {
     ctx.save();
     ctx.globalAlpha = 0.16;
@@ -200,9 +308,10 @@ function drawPanel(ctx, rect, panel, grade, effects, scale) {
   ctx.strokeStyle = 'rgba(255,255,255,0.85)';
   ctx.lineWidth = 2 * scale;
   ctx.strokeRect(px, py, pw, ph);
+  if (panel.act) drawActChip(ctx, px, py, scale, panel.act);
 }
 
-/** A small synthwave sun: a disc with horizontal slits, drawn in a gradient. */
+/** A small sun: a plain gradient disc, the app's own emblem. */
 function drawSunEmblem(ctx, cx, cy, r) {
   const g = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
   g.addColorStop(0, '#ffd166');
@@ -211,52 +320,53 @@ function drawSunEmblem(ctx, cx, cy, r) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.clip();
   ctx.fillStyle = g;
-  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-  ctx.fillStyle = BAND;
-  const slits = [0.12, 0.3, 0.5, 0.68];
-  slits.forEach((at, i) => {
-    const y = cy + r * at;
-    ctx.fillRect(cx - r, y, r * 2, r * (0.06 + i * 0.03));
-  });
+  ctx.fill();
   ctx.restore();
 }
 
-/** A small palm silhouette: one leaning trunk and five thin blades that arc out from its crown and droop. */
+/** One thick blade of the palm emblem: out along a curve, back along a near-parallel one. */
+function emblemBlade(ctx, x0, y0, cx, cy, x1, y1, w) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.quadraticCurveTo(cx, cy, x1, y1);
+  ctx.quadraticCurveTo((x0 + x1) / 2 + w, (y0 + y1) / 2 + w * 0.5, x0, y0);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A real palm, drawn to read at small size: a thick leaning trunk and five thick fronds that arc out and droop. */
 function drawPalmEmblem(ctx, x, y, s) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s, s);
   ctx.fillStyle = '#ff2e88';
-  // Trunk: a leaning, tapering curve, drawn wide enough to read as a trunk.
+  // Trunk: wide at the base, tapering as it leans up to the crown.
   ctx.beginPath();
-  ctx.moveTo(-2.5, 0);
-  ctx.quadraticCurveTo(-1, -16, 6, -30);
-  ctx.lineTo(10, -30);
-  ctx.quadraticCurveTo(3, -16, 2.5, 0);
+  ctx.moveTo(-3.5, 0);
+  ctx.quadraticCurveTo(-2.5, -18, 5, -34);
+  ctx.lineTo(10, -34);
+  ctx.quadraticCurveTo(2.5, -18, 3.5, 0);
   ctx.closePath();
   ctx.fill();
-  // Fronds: thin blades from the crown (8,-30), all arcing out and drooping.
-  const crown = [8, -30];
-  const blades = [
-    [-22, -34, -10, -36],
-    [-28, -14, -18, -24],
-    [34, -34, 22, -36],
-    [30, -14, 22, -24],
-    [10, -48, 8, -40],
+  // Fronds from the crown (7, -34): five thick blades, all arcing out and drooping down.
+  const crown = [7, -34];
+  const fronds = [
+    [-24, -40, -12, -44],
+    [-28, -22, -18, -32],
+    [-16, -8, -12, -20],
+    [36, -42, 24, -46],
+    [34, -22, 26, -32],
+    [8, -52, 7, -44],
   ];
-  for (const [tx, ty, cx, cy] of blades) {
-    // A thin blade: out along the curve, back along a near-parallel one.
-    const mx = (crown[0] + tx) / 2;
-    const my = (crown[1] + ty) / 2;
-    ctx.beginPath();
-    ctx.moveTo(crown[0], crown[1]);
-    ctx.quadraticCurveTo(cx, cy, tx, ty);
-    ctx.quadraticCurveTo(mx + (cx - mx) * 0.35, my + (cy - my) * 0.35, crown[0], crown[1]);
-    ctx.closePath();
-    ctx.fill();
+  for (const [tx, ty, cx, cy] of fronds) {
+    emblemBlade(ctx, crown[0], crown[1], cx, cy, tx, ty, 3);
   }
+  // Coconuts at the crown.
+  ctx.beginPath();
+  ctx.arc(4, -31, 2.2, 0, Math.PI * 2);
+  ctx.arc(10, -30, 2.2, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -271,7 +381,27 @@ function fitCaptionSize(ctx, text, maxWidth, startSize) {
   return size;
 }
 
-/** Draws the caption band: sun and palm emblems, caption, tagline, rules. */
+/** The width of a letterspaced string, for centring it. */
+function spacedWidth(ctx, text, spacing) {
+  let w = 0;
+  for (const ch of text) w += ctx.measureText(ch).width + spacing;
+  return w - spacing;
+}
+
+/** Draws a letterspaced string, aligned left, centre, or right at x. */
+function drawSpaced(ctx, text, x, y, spacing, align = 'left') {
+  const total = spacedWidth(ctx, text, spacing);
+  let lx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
+  for (const ch of text) {
+    ctx.fillText(ch, lx + ctx.measureText(ch).width / 2, y);
+    lx += ctx.measureText(ch).width + spacing;
+  }
+}
+
+/** The case file line, constant for every cover: number, city, date. */
+const CASE_FILE = 'CASE #VC-2026-1119 · VICE CITY, LEONIDA · 19 NOV 2026';
+
+/** Draws the caption band as a police case file: case line and wanted level on top, the nickname in bold, the stats below. */
 function drawCaptionBand(ctx, band, state, scale) {
   const { x: bx, y: by, w: bw, h: bh } = band;
   ctx.fillStyle = BAND;
@@ -284,19 +414,50 @@ function drawCaptionBand(ctx, band, state, scale) {
   ctx.fillRect(bx, by, bw, Math.max(3, 4 * scale));
 
   const caption = (state.caption || '').trim().toUpperCase();
-  const tagline = (state.tagline || '').trim().toUpperCase();
+  const stats = (state.stats || '').trim().toUpperCase();
   const pad = bw * 0.06;
   const emblemR = Math.min(bh * 0.26, bw * 0.035);
-  const textLeft = bx + pad + emblemR * 2.6;
-  const textRight = bx + bw - pad - emblemR * 2.6;
+  // The palm emblem's fronds reach 0.28 * band-height left of its centre, which can exceed the
+  // 2.6 * emblemR text reserve when the band is tall and narrow (portrait/square): reserve enough
+  // that a long caption never runs under the fronds.
+  const reserve = Math.max(emblemR * 2.6, emblemR * 1.3 + bh * 0.28);
+  const textLeft = bx + pad + reserve;
+  const textRight = bx + bw - pad - reserve;
   const textWidth = textRight - textLeft;
 
   drawSunEmblem(ctx, bx + pad + emblemR, by + bh * 0.5, emblemR);
-  drawPalmEmblem(ctx, bx + bw - pad - emblemR * 0.9, by + bh * 0.72, (emblemR * 1.7) / 26);
+  drawPalmEmblem(ctx, bx + bw - pad - emblemR * 1.3, by + bh * 0.8, bh * 0.01);
+
+  // Top strip: the case file on the left, WANTED and the star level on the right.
+  // The strip shrinks until the case line and the wanted block both fit.
+  const wanted = Math.max(1, Math.min(5, state.wanted || 1));
+  const stars = '★'.repeat(wanted) + '☆'.repeat(5 - wanted);
+  let stripSize = Math.max(10, bh * 0.105);
+  ctx.save();
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${stripSize}px system-ui, sans-serif`;
+  const wantedWidth = ctx.measureText('WANTED ').width + ctx.measureText(stars).width;
+  const gap = bw * 0.03;
+  const caseAvailable = bw - pad * 2 - wantedWidth - gap;
+  const caseWidth = spacedWidth(ctx, CASE_FILE, stripSize * 0.18);
+  if (caseWidth > caseAvailable && caseWidth > 0) {
+    stripSize = Math.max(8, stripSize * (caseAvailable / caseWidth));
+    ctx.font = `700 ${stripSize}px system-ui, sans-serif`;
+  }
+  const stripY = by + bh * 0.13;
+  ctx.fillStyle = '#8be9ff';
+  ctx.textAlign = 'left';
+  drawSpaced(ctx, CASE_FILE, bx + pad, stripY, stripSize * 0.18, 'left');
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ffd166';
+  ctx.fillText('WANTED ', bx + bw - pad - ctx.measureText(stars).width, stripY);
+  ctx.fillStyle = '#ff5e7a';
+  ctx.fillText(stars, bx + bw - pad, stripY);
+  ctx.restore();
 
   if (caption) {
-    const size = fitCaptionSize(ctx, caption, textWidth, bh * 0.52);
-    const cy = by + bh * (tagline ? 0.48 : 0.56);
+    const size = fitCaptionSize(ctx, caption, textWidth, bh * 0.5);
+    const cy = by + bh * 0.52;
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -319,23 +480,14 @@ function drawCaptionBand(ctx, band, state, scale) {
     ctx.fillText(caption, (textLeft + textRight) / 2, cy);
     ctx.restore();
   }
-  if (tagline) {
-    const tSize = Math.max(11, bh * 0.13);
+  if (stats) {
+    const tSize = Math.max(11, bh * 0.115);
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `700 ${tSize}px system-ui, sans-serif`;
     ctx.fillStyle = '#8be9ff';
-    const spacing = tSize * 0.32;
-    const letters = tagline.split('');
-    const widths = letters.map((ch) => ctx.measureText(ch).width + spacing);
-    const total = widths.reduce((a, b) => a + b, 0) - spacing;
-    let lx = (textLeft + textRight) / 2 - total / 2;
-    const ty = by + bh * 0.82;
-    for (let i = 0; i < letters.length; i += 1) {
-      ctx.fillText(letters[i], lx + ctx.measureText(letters[i]).width / 2, ty);
-      lx += widths[i];
-    }
+    drawSpaced(ctx, stats, (textLeft + textRight) / 2, by + bh * 0.85, tSize * 0.28, 'center');
     ctx.restore();
   }
 }
@@ -358,7 +510,7 @@ export function drawCover(canvas, state) {
       w: panelRect.w * w,
       h: panelRect.h * h,
     };
-    const panel = (state.panels && state.panels[i]) || { photo: null, scale: 1, dx: 0, dy: 0 };
+    const panel = (state.panels && state.panels[i]) || { photo: null, art: null, grade: null, act: null, scale: 1, dx: 0, dy: 0 };
     drawPanel(ctx, rect, panel, grade, effects, scale);
   });
   const band = {
